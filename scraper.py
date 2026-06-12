@@ -212,6 +212,21 @@ def init_db(db_path: Path = DB_PATH) -> sqlite3.Connection:
     )
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS exchange_rate_snapshot (
+            currency TEXT NOT NULL,
+            fetched_at TEXT NOT NULL,
+            rate_timestamp TEXT NOT NULL,
+            spot_buy REAL,
+            spot_sell REAL,
+            cash_buy REAL,
+            cash_sell REAL,
+            source TEXT NOT NULL,
+            PRIMARY KEY (currency, fetched_at, source)
+        )
+        """
+    )
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS historical_fx_rate (
             currency TEXT NOT NULL,
             rate_date TEXT NOT NULL,
@@ -224,6 +239,15 @@ def init_db(db_path: Path = DB_PATH) -> sqlite3.Connection:
         )
         """
     )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO exchange_rate_snapshot
+        (currency, fetched_at, rate_timestamp, spot_buy, spot_sell, cash_buy, cash_sell, source)
+        SELECT currency, fetched_at, rate_timestamp, spot_buy, spot_sell, cash_buy, cash_sell, source
+        FROM exchange_rate
+        """
+    )
+    conn.commit()
     return conn
 
 
@@ -289,7 +313,7 @@ def scrape_hsbc_rates(conn: sqlite3.Connection) -> int:
         if rows:
             break
 
-    return upsert_many(
+    latest_count = upsert_many(
         conn,
         """
         INSERT OR REPLACE INTO exchange_rate
@@ -298,6 +322,38 @@ def scrape_hsbc_rates(conn: sqlite3.Connection) -> int:
         """,
         rows,
     )
+    snapshot_rows = [
+        (
+            currency,
+            fetched_at,
+            rate_timestamp,
+            spot_buy,
+            spot_sell,
+            cash_buy,
+            cash_sell,
+            source,
+        )
+        for (
+            currency,
+            rate_timestamp,
+            spot_buy,
+            spot_sell,
+            cash_buy,
+            cash_sell,
+            source,
+            fetched_at,
+        ) in rows
+    ]
+    upsert_many(
+        conn,
+        """
+        INSERT OR REPLACE INTO exchange_rate_snapshot
+        (currency, fetched_at, rate_timestamp, spot_buy, spot_sell, cash_buy, cash_sell, source)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        snapshot_rows,
+    )
+    return latest_count
 
 
 def frankfurter_history_url(history_years: int | None = 10, history_days: int | None = None) -> str:

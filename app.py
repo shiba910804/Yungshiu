@@ -72,6 +72,52 @@ def chart_summary(values):
 
 # ── pages ──────────────────────────────────────────────────────────────────
 
+def fx_mid_rate_expr():
+    return """
+        CASE
+            WHEN spot_buy IS NOT NULL AND spot_sell IS NOT NULL THEN (spot_buy + spot_sell) / 2.0
+            WHEN spot_buy IS NOT NULL THEN spot_buy
+            WHEN spot_sell IS NOT NULL THEN spot_sell
+            WHEN cash_buy IS NOT NULL AND cash_sell IS NOT NULL THEN (cash_buy + cash_sell) / 2.0
+            WHEN cash_buy IS NOT NULL THEN cash_buy
+            WHEN cash_sell IS NOT NULL THEN cash_sell
+        END
+    """
+
+
+def intraday_fx_rows(conn, currency, period):
+    if period not in {"1d", "5d"}:
+        return None
+    source_table = (
+        "exchange_rate_snapshot"
+        if table_exists(conn, "exchange_rate_snapshot")
+        else "exchange_rate"
+    )
+    delta = timedelta(hours=24) if period == "1d" else timedelta(days=5)
+    cutoff = (datetime.now() - delta).isoformat(timespec="seconds")
+    rate_expr = fx_mid_rate_expr()
+    return conn.execute(
+        f"""
+        SELECT fetched_at, rate_timestamp, twd_per_unit
+        FROM (
+            SELECT fetched_at, rate_timestamp, {rate_expr} AS twd_per_unit
+            FROM {source_table}
+            WHERE currency=? AND fetched_at >= ?
+        )
+        WHERE twd_per_unit IS NOT NULL
+        ORDER BY fetched_at
+        """,
+        (currency, cutoff),
+    ).fetchall()
+
+
+def format_intraday_label(fetched_at):
+    try:
+        return datetime.fromisoformat(fetched_at).strftime("%m/%d %H:%M")
+    except (TypeError, ValueError):
+        return fetched_at
+
+
 @app.route("/")
 def index():
     if not DB_PATH.exists():
@@ -253,28 +299,15 @@ def api_historical_fx(currency):
         return jsonify({"labels": [], "data": []})
     period = request.args.get("period", "all")
     if period in {"1d", "5d"}:
-        limit = 1 if period == "1d" else 5
-        rows = conn.execute(
-            """
-            SELECT rate_date, twd_per_unit
-            FROM (
-                SELECT rate_date, twd_per_unit
-                FROM historical_fx_rate
-                WHERE currency=?
-                ORDER BY rate_date DESC
-                LIMIT ?
-            )
-            ORDER BY rate_date
-            """,
-            (currency, limit),
-        ).fetchall()
-        conn.close()
-        values = [r["twd_per_unit"] for r in rows]
-        return jsonify({
-            "labels": [r["rate_date"] for r in rows],
-            "data": [r["twd_per_unit"] for r in rows],
-            "summary": chart_summary(values),
-        })
+        rows = intraday_fx_rows(conn, currency, period)
+        if rows:
+            conn.close()
+            values = [r["twd_per_unit"] for r in rows]
+            return jsonify({
+                "labels": [format_intraday_label(r["fetched_at"]) for r in rows],
+                "data": [r["twd_per_unit"] for r in rows],
+                "summary": chart_summary(values),
+            })
 
     start_date = period_start_date()
     params = [currency]
