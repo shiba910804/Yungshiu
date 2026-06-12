@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.pyo
+
+.venv/
+venv/
+env/
+
+data/
+exports/
+logs/
+
+.env
+.env.*
+
+.DS_Store
+Thumbs.db

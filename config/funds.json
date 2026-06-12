@@ -1,0 +1,107 @@
+[
+  {
+    "id": "ACDD04",
+    "name": "安聯台灣科技基金",
+    "source": "moneydj",
+    "moneydj_kind": "domestic",
+    "fundclear": {
+      "kind": "onshore",
+      "org_id": "A0036",
+      "fund_id": "18480065",
+      "class_id": "18480065"
+    },
+    "status": "confirmed"
+  },
+  {
+    "id": "ACPS10",
+    "name": "統一奔騰基金",
+    "source": "moneydj",
+    "moneydj_kind": "domestic",
+    "fundclear": {
+      "kind": "onshore",
+      "org_id": "A0009",
+      "fund_id": "73990253",
+      "class_id": "73990253"
+    },
+    "status": "confirmed"
+  },
+  {
+    "id": "76959044C",
+    "name": "元大台灣高股息優質龍頭基金-新台幣I類型累積級別",
+    "requested_name": "元大台灣高股息優質龍頭基金-新台幣I類型累積級別",
+    "source": "fundclear",
+    "moneydj_kind": "domestic",
+    "fundclear": {
+      "kind": "onshore",
+      "org_id": "A0005",
+      "fund_id": "76959044C",
+      "class_id": "76959044C"
+    },
+    "status": "confirmed_by_user_url"
+  },
+  {
+    "id": "ACPS02",
+    "name": "統一黑馬基金",
+    "source": "moneydj",
+    "moneydj_kind": "domestic",
+    "fundclear": {
+      "kind": "onshore",
+      "org_id": "A0009",
+      "fund_id": "92002244",
+      "class_id": "92002244"
+    },
+    "status": "confirmed"
+  },
+  {
+    "id": "PIZC5",
+    "name": "東方匯理基金策略收益債券A南非幣避險(穩定月配息)",
+    "source": "moneydj",
+    "moneydj_kind": "offshore",
+    "fundclear": {
+      "kind": "offshore",
+      "org_id": "010",
+      "fund_id": "A003500046",
+      "class_id": "LU1883841964"
+    },
+    "status": "confirmed"
+  },
+  {
+    "id": "PIZD7",
+    "name": "東方匯理基金新興市場債券A南非幣避險(穩定月配息)",
+    "source": "moneydj",
+    "moneydj_kind": "offshore",
+    "fundclear": {
+      "kind": "offshore",
+      "org_id": "010",
+      "fund_id": "A003500041",
+      "class_id": "LU1882450999"
+    },
+    "status": "confirmed"
+  },
+  {
+    "id": "JFZN3",
+    "name": "摩根投資基金-多重收益基金-JPM多重收益(美元對沖)-A股(穩定月配)",
+    "source": "moneydj",
+    "moneydj_kind": "offshore",
+    "fundclear": {
+      "kind": "offshore",
+      "org_id": "007",
+      "fund_id": "A001100051",
+      "class_id": "GLIACU"
+    },
+    "status": "confirmed"
+  },
+  {
+    "id": "ALBT8",
+    "name": "聯博-美國成長基金AP(總報酬月配)級別美元",
+    "source": "moneydj",
+    "moneydj_kind": "offshore",
+    "fundclear": {
+      "kind": "offshore",
+      "org_id": "029",
+      "fund_id": "A001800001",
+      "class_id": "ABAGPAPUSD"
+    },
+    "status": "confirmed"
+  }
+]

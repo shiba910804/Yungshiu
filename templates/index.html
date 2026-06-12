@@ -1,0 +1,286 @@
+﻿<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>基金與匯率監控 Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="主導覽">
+      <div class="brand-block">
+        <div class="brand-mark">YS</div>
+        <div>
+          <div class="brand-title">Yungshiu</div>
+          <div class="brand-subtitle">Fund and FX Monitor</div>
+        </div>
+      </div>
+      <nav class="side-nav">
+        <a href="#overview">總覽</a>
+        <a href="#charts">趨勢圖</a>
+        <a href="#fx-table">即時匯率</a>
+        <a href="#fund-table">基金覆蓋率</a>
+        {% if hfx_coverage %}<a href="#hfx-table">歷史匯率</a>{% endif %}
+        <a href="#downloads">下載</a>
+      </nav>
+      <div class="side-note">
+        <span class="status-dot {{ system_status.tone }}"></span>
+        <div class="side-note-text">
+          <strong>{{ system_status.label }}</strong>
+          <span>{{ fund_count }}/8 基金 · {{ currency_count }}/6 即時匯率 · {{ hfx_currency_count }}/6 歷史匯率</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">資料監控中心</p>
+          <h1>基金淨值、配息與匯率趨勢</h1>
+        </div>
+        <div class="top-status">
+          <span class="pill {{ system_status.tone }}">{{ system_status.label }}</span>
+          <div class="timestamp">
+            <span>最後更新</span>
+            <strong>{{ last_update or '尚無資料' }}</strong>
+          </div>
+        </div>
+      </header>
+
+      <section id="overview" class="overview-grid" aria-label="資料總覽">
+        <article class="metric-card">
+          <span class="metric-label">基金淨值</span>
+          <strong>{{ '{:,}'.format(nav_count) }}</strong>
+          <span class="metric-meta">{{ fund_count }}/8 檔基金</span>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">基金配息</span>
+          <strong>{{ '{:,}'.format(div_count) }}</strong>
+          <span class="metric-meta">{{ dividend_fund_count }} 檔有配息紀錄</span>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">匯豐即時匯率</span>
+          <strong>{{ currency_count }}</strong>
+          <span class="metric-meta">六種指定幣別</span>
+        </article>
+        <article class="metric-card accent">
+          <span class="metric-label">歷史匯率</span>
+          <strong>{{ '{:,}'.format(hfx_count or 0) }}</strong>
+          <span class="metric-meta">{{ latest_hfx_date or '尚無資料' }}</span>
+        </article>
+      </section>
+
+      <section class="status-strip" aria-label="系統狀態">
+        <div>
+          <span class="status-dot {{ system_status.tone }}"></span>
+          <strong>{{ system_status.detail }}</strong>
+        </div>
+        <span>資料來源：FundClear、MoneyDJ、匯豐銀行台灣、Frankfurter API</span>
+      </section>
+
+      <section id="charts" class="chart-grid">
+        <article class="panel chart-panel" id="nav-chart">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">基金趨勢</p>
+              <h2>淨值走勢</h2>
+            </div>
+            <div class="toolbar">
+              <label for="fundSelector">基金</label>
+              <select id="fundSelector"><option value="">載入中</option></select>
+            </div>
+          </div>
+          <div class="range-group" data-chart="fund" aria-label="基金圖期間">
+            <button type="button" class="range-btn" data-period="1m">1M</button>
+            <button type="button" class="range-btn" data-period="1">1Y</button>
+            <button type="button" class="range-btn" data-period="3">3Y</button>
+            <button type="button" class="range-btn" data-period="5">5Y</button>
+            <button type="button" class="range-btn" data-period="10">10Y</button>
+            <button type="button" class="range-btn active" data-period="all">全部</button>
+          </div>
+          <div class="chart-summary" id="fundSummary">
+            <div><span>最新</span><strong>--</strong></div>
+            <div><span>區間高點</span><strong>--</strong></div>
+            <div><span>區間低點</span><strong>--</strong></div>
+            <div><span>區間變化</span><strong>--</strong></div>
+          </div>
+          <div id="navLoading" class="loading">載入資料中</div>
+          <div class="chart-wrap hidden"><canvas id="navCanvas"></canvas></div>
+        </article>
+
+        {% if hfx_coverage %}
+        <article class="panel chart-panel" id="hfx-chart">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">匯率趨勢</p>
+              <h2>1 外幣兌 TWD</h2>
+            </div>
+            <div class="toolbar compact">
+              <label for="fxSelector">幣別</label>
+              <select id="fxSelector"><option value="">載入中</option></select>
+            </div>
+          </div>
+          <div class="range-group" data-chart="fx" aria-label="匯率圖期間">
+            <button type="button" class="range-btn" data-period="1d">1D</button>
+            <button type="button" class="range-btn" data-period="5d">5D</button>
+            <button type="button" class="range-btn" data-period="1m">1M</button>
+            <button type="button" class="range-btn" data-period="1">1Y</button>
+            <button type="button" class="range-btn" data-period="3">3Y</button>
+            <button type="button" class="range-btn" data-period="5">5Y</button>
+            <button type="button" class="range-btn" data-period="10">10Y</button>
+            <button type="button" class="range-btn active" data-period="all">全部</button>
+          </div>
+          <div class="chart-summary" id="fxSummary">
+            <div><span>最新</span><strong>--</strong></div>
+            <div><span>區間高點</span><strong>--</strong></div>
+            <div><span>區間低點</span><strong>--</strong></div>
+            <div><span>區間變化</span><strong>--</strong></div>
+          </div>
+          <div id="fxLoading" class="loading">載入資料中</div>
+          <div class="chart-wrap hidden"><canvas id="fxCanvas"></canvas></div>
+        </article>
+        {% endif %}
+      </section>
+
+      <section id="fx-table" class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">HSBC Taiwan</p>
+            <h2>匯豐外匯牌告最新資料</h2>
+          </div>
+          <span class="panel-count">{{ currency_count }} 幣別</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>幣別</th>
+                <th class="num">即期買入</th>
+                <th class="num">即期賣出</th>
+                <th class="num">現金買入</th>
+                <th class="num">現金賣出</th>
+                <th>報價時間</th>
+                <th>抓取時間</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in exchange_rates %}
+              <tr>
+                <td><span class="currency-chip">{{ r['currency'] }}</span></td>
+                <td class="num">{{ '%.4f'|format(r['spot_buy']) if r['spot_buy'] is not none else '—' }}</td>
+                <td class="num">{{ '%.4f'|format(r['spot_sell']) if r['spot_sell'] is not none else '—' }}</td>
+                <td class="num">{{ '%.4f'|format(r['cash_buy']) if r['cash_buy'] is not none else '—' }}</td>
+                <td class="num">{{ '%.4f'|format(r['cash_sell']) if r['cash_sell'] is not none else '—' }}</td>
+                <td>{{ r['rate_timestamp'] }}</td>
+                <td>{{ r['fetched_at'] }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="7" class="empty">尚無匯率資料</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">註：現金買入／現金賣出顯示「—」代表匯豐未提供該幣別現金牌告。匯豐目前外幣現鈔服務只涵蓋部分幣別。</p>
+      </section>
+
+      <section id="fund-table" class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Fund Coverage</p>
+            <h2>八檔基金資料覆蓋率</h2>
+          </div>
+          <span class="panel-count">{{ fund_count }}/8 檔基金</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>基金代碼</th>
+                <th>基金名稱</th>
+                <th>淨值起始日</th>
+                <th>淨值最新日</th>
+                <th class="num">淨值筆數</th>
+                <th>配息起始日</th>
+                <th>配息最新日</th>
+                <th class="num">配息筆數</th>
+                <th>配息狀態</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in fund_stats %}
+              <tr>
+                <td><strong>{{ f['fund_id'] }}</strong></td>
+                <td class="name-cell">{{ f['fund_name'] }}</td>
+                <td>{{ f['nav_min_date'] or '—' }}</td>
+                <td>{{ f['nav_max_date'] or '—' }}</td>
+                <td class="num">{{ '{:,}'.format(f['nav_count']) }}</td>
+                <td>{{ f['div_min_date'] if f['div_min_date'] else '—' }}</td>
+                <td>{{ f['div_max_date'] if f['div_max_date'] else '—' }}</td>
+                <td class="num">{{ '{:,}'.format(f['div_count']) }}</td>
+                <td>
+                  {% if f['div_count'] %}
+                  <span class="badge ok">有配息</span>
+                  {% else %}
+                  <span class="badge muted" title="可能是累積級別、未配息，或來源沒有配息資料">無配息資料</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="9" class="empty">尚無基金資料</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {% if hfx_coverage %}
+      <section id="hfx-table" class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Frankfurter</p>
+            <h2>歷史匯率覆蓋率</h2>
+          </div>
+          <span class="panel-count">{{ hfx_currency_count }} 幣別</span>
+        </div>
+        <div class="coverage-grid">
+          {% for r in hfx_coverage %}
+          <article class="coverage-item">
+            <div class="currency-chip">{{ r['currency'] }}</div>
+            <strong>{{ r['min_date'] }} 至 {{ r['max_date'] }}</strong>
+            <span>{{ '{:,}'.format(r['row_count']) }} 筆，最後抓取 {{ r['last_fetch'] }}</span>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <section id="downloads" class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Exports</p>
+            <h2>下載資料與驗收報表</h2>
+          </div>
+        </div>
+        <div class="download-grid">
+          <a class="download-card" href="/download/fund_nav.csv"><span>原始資料</span><strong>fund_nav.csv</strong></a>
+          <a class="download-card" href="/download/fund_dividend.csv"><span>原始資料</span><strong>fund_dividend.csv</strong></a>
+          <a class="download-card" href="/download/exchange_rate.csv"><span>原始資料</span><strong>exchange_rate.csv</strong></a>
+          {% if hfx_coverage %}
+          <a class="download-card highlight" href="/download/historical_fx_rate.csv"><span>歷史匯率</span><strong>historical_fx_rate.csv</strong></a>
+          {% endif %}
+          <a class="download-card muted" href="/download/data_quality_report.md"><span>驗收報表</span><strong>data_quality_report.md</strong></a>
+          <a class="download-card muted" href="/download/fund_quality_report.csv"><span>驗收報表</span><strong>fund_quality_report.csv</strong></a>
+          <a class="download-card muted" href="/download/exchange_rate_latest.csv"><span>驗收報表</span><strong>exchange_rate_latest.csv</strong></a>
+          {% if hfx_coverage %}
+          <a class="download-card muted" href="/download/historical_fx_quality_report.csv"><span>驗收報表</span><strong>historical_fx_quality_report.csv</strong></a>
+          {% endif %}
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
