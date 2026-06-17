@@ -14,7 +14,20 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [1/3] Starting dashboard if it is not already running...
+echo [1/4] Checking Python packages...
+python.exe -c "import flask" >nul 2>nul
+if errorlevel 1 (
+  echo Flask is not installed. Installing packages from requirements.txt...
+  python.exe -m pip install -r requirements.txt
+  if errorlevel 1 (
+    echo ERROR: Failed to install Python packages.
+    pause
+    exit /b 1
+  )
+)
+
+echo.
+echo [2/4] Starting dashboard if it is not already running...
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
   "$project=(Resolve-Path '.').Path; $running=Get-CimInstance Win32_Process -Filter \"name like 'python%%'\" | Where-Object { $_.CommandLine -like '*app.py*' }; if ($running) { Write-Host 'Dashboard already running.' } else { Start-Process -FilePath 'python.exe' -ArgumentList 'app.py' -WorkingDirectory $project -WindowStyle Hidden | Out-Null; Write-Host 'Dashboard started.' }"
 if errorlevel 1 (
@@ -24,7 +37,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo [2/3] Ensuring hourly crawler task is enabled...
+echo [3/4] Ensuring hourly crawler task is enabled...
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup_realtime_task.ps1"
 if errorlevel 1 (
   echo ERROR: Failed to create or start the crawler task.
@@ -33,7 +46,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo [3/3] Opening dashboard...
+echo [4/4] Opening dashboard...
 timeout /t 2 /nobreak >nul
 start "" "http://127.0.0.1:5000/"
 
